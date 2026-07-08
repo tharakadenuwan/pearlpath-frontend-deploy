@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { UploadCloud, MapPin, Building, Star, FileText, DollarSign, Check, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../Navbar/Navbar';
@@ -20,7 +20,8 @@ const AMENITIES_LIST = [
   'Airport Shuttle'
 ];
 
-const AddProperty = () => {
+const EditProperty = () => {
+  const { id } = useParams();
   const [formData, setFormData] = useState({
     propertyName: '',
     propertyType: 'Hotel',
@@ -38,6 +39,36 @@ const AddProperty = () => {
   const [isPublished, setIsPublished] = useState(false);
   const navigate = useNavigate();
   const { authFetch } = useAuth();
+
+  useEffect(() => {
+    const fetchProperty = async () => {
+      try {
+        const response = await fetch(`http://127.0.0.1:3001/api/hotels/${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          const hotel = data.response;
+          setFormData({
+            propertyName: hotel.name || '',
+            propertyType: 'Hotel',
+            starRating: hotel.starRating?.toString() || '3',
+            rooms: hotel.rooms?.toString() || '1',
+            address: hotel.location || '',
+            city: hotel.location || '',
+            description: hotel.description || '',
+            pricePerNight: hotel.pricePerNight || '',
+            amenities: hotel.amenities || [],
+            images: []
+          });
+          if (hotel.imageUrl) {
+            setImagePreviews([hotel.imageUrl]);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching property:", error);
+      }
+    };
+    fetchProperty();
+  }, [id]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -99,8 +130,8 @@ const AddProperty = () => {
         amenities: formData.amenities
       };
 
-      const response = await authFetch('http://127.0.0.1:3001/api/hotels', {
-        method: 'POST',
+      const response = await authFetch(`http://127.0.0.1:3001/api/hotels/${id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -128,8 +159,8 @@ const AddProperty = () => {
       <div className="pt-28 pb-10 bg-sunset-dark text-white shadow-md relative overflow-hidden">
         <div className="absolute inset-0 z-0 bg-gradient-to-r from-sunset-dark to-sunset-teal/80"></div>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <h1 className="text-4xl font-extrabold mb-2">Add New Property</h1>
-          <p className="text-xl text-gray-300 font-light">List your hotel, villa, or resort on PearlPath to reach more tourists.</p>
+          <h1 className="text-4xl font-extrabold mb-2">Edit Property</h1>
+          <p className="text-xl text-gray-300 font-light">Update your property details to keep guests informed.</p>
         </div>
       </div>
 
@@ -375,7 +406,7 @@ const AddProperty = () => {
                   : 'bg-gradient-to-r from-sunset-orange to-sunset-gold text-white hover:shadow-orange-500/30 hover:-translate-y-1 focus:ring-4 focus:ring-orange-500/50'
               }`}
             >
-              {isPublished ? '✓ Published Successfully' : 'Publish Property'}
+              {isPublished ? '✓ Changes Saved' : 'Save Changes'}
             </button>
           </div>
 
@@ -386,4 +417,4 @@ const AddProperty = () => {
   );
 };
 
-export default AddProperty;
+export default EditProperty;

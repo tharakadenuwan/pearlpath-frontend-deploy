@@ -3,42 +3,40 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../Navbar/Navbar';
 import Footer from '../Footer/Footer';
-import { MapPin, Star, Wifi, Coffee, Wind, Waves, Calendar, Users, Home, User } from 'lucide-react';
+import { Car, Users, Settings, Wind, Calendar, User, MapPin } from 'lucide-react';
 
-const HotelDetails = () => {
+const VehicleDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, authFetch } = useAuth();
   
-  const [hotel, setHotel] = useState(null);
+  const [vehicle, setVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   
   // Booking Form State
   const [bookingData, setBookingData] = useState({
     startDate: '',
-    endDate: '',
-    guests: 1,
-    rooms: 1
+    endDate: ''
   });
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingMessage, setBookingMessage] = useState('');
 
   useEffect(() => {
-    const fetchHotelDetails = async () => {
+    const fetchVehicleDetails = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:3001/api/hotels/${id}`);
+        const response = await fetch(`http://127.0.0.1:3001/api/vehicles/${id}`);
         const data = await response.json();
         if (response.ok) {
-          setHotel(data.response);
+          setVehicle(data.response);
         }
       } catch (error) {
-        console.error("Error fetching hotel details:", error);
+        console.error("Error fetching vehicle details:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchHotelDetails();
+    fetchVehicleDetails();
   }, [id]);
 
   const handleBookingChange = (e) => {
@@ -46,14 +44,19 @@ const HotelDetails = () => {
   };
 
   const calculateTotalPrice = () => {
-    if (!bookingData.startDate || !bookingData.endDate || !hotel) return 0;
+    if (!bookingData.startDate || !bookingData.endDate || !vehicle) return 0;
     const start = new Date(bookingData.startDate);
     const end = new Date(bookingData.endDate);
     const timeDiff = end.getTime() - start.getTime();
-    const nights = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    const days = Math.ceil(timeDiff / (1000 * 3600 * 24));
     
-    if (nights <= 0) return 0;
-    return nights * hotel.pricePerNight * bookingData.rooms;
+    // Minimum 1 day rental
+    const rentalDays = days > 0 ? days : 1; 
+    
+    // If end date is before start date, return 0
+    if (days < 0) return 0;
+    
+    return rentalDays * vehicle.pricePerDay;
   };
 
   const handleBookingSubmit = async (e) => {
@@ -78,12 +81,11 @@ const HotelDetails = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          hotelId: hotel._id,
-          providerId: hotel.ownerId,
+          vehicleId: vehicle._id,
+          providerId: vehicle.ownerId,
           startDate: bookingData.startDate,
           endDate: bookingData.endDate,
-          guests: bookingData.guests,
-          rooms: bookingData.rooms,
+          guests: vehicle.seats, // vehicles don't use 'guests' the same way as hotels, but we can pass seats
           totalPrice
         })
       });
@@ -103,8 +105,8 @@ const HotelDetails = () => {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-outfit"><p>Loading hotel details...</p></div>;
-  if (!hotel) return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-outfit"><p>Hotel not found.</p></div>;
+  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-outfit"><p>Loading vehicle details...</p></div>;
+  if (!vehicle) return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-outfit"><p>Vehicle not found.</p></div>;
 
   return (
     <div className="min-h-screen bg-gray-50 font-outfit flex flex-col">
@@ -113,29 +115,35 @@ const HotelDetails = () => {
       <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-28 w-full">
         {/* Header Section */}
         <div className="mb-6">
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-2">{hotel.name}</h1>
+          <h1 className="text-4xl font-extrabold text-gray-900 mb-2">{vehicle.makeAndModel}</h1>
           <div className="flex items-center gap-4 text-gray-600">
-            <span className="flex items-center gap-1 font-medium"><MapPin size={18} className="text-sunset-teal" /> {hotel.location}</span>
-            <span className="flex items-center gap-1 font-bold text-sunset-gold"><Star size={18} className="fill-current" /> {hotel.starRating} Stars</span>
+            <span className="flex items-center gap-1 font-medium"><Car size={18} className="text-sunset-teal" /> {vehicle.vehicleType}</span>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold ${vehicle.isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              {vehicle.isAvailable ? 'Available Now' : 'Currently Unavailable'}
+            </span>
           </div>
         </div>
 
         {/* Image Gallery */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-10 h-96">
           <div className="lg:col-span-2 h-full rounded-2xl overflow-hidden shadow-sm">
-            <img src={hotel.imageUrl} alt={hotel.name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+            <img 
+              src={vehicle.images && vehicle.images.length > 0 ? vehicle.images[0] : "https://images.unsplash.com/photo-1590362891991-f776e747a58f?q=80&w=800&auto=format&fit=crop"} 
+              alt={vehicle.makeAndModel} 
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" 
+            />
           </div>
           <div className="hidden lg:flex flex-col gap-4 h-full">
             <div className="flex-1 rounded-2xl overflow-hidden shadow-sm bg-gray-200">
-              {hotel.images && hotel.images[0] ? (
-                <img src={hotel.images[0]} alt="Gallery 1" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+              {vehicle.images && vehicle.images[1] ? (
+                <img src={vehicle.images[1]} alt="Gallery 1" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
               ) : (
                 <div className="w-full h-full bg-sunset-teal/10 flex items-center justify-center text-sunset-teal font-medium">More Photos Coming Soon</div>
               )}
             </div>
             <div className="flex-1 rounded-2xl overflow-hidden shadow-sm bg-gray-200">
-              {hotel.images && hotel.images[1] ? (
-                <img src={hotel.images[1]} alt="Gallery 2" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+              {vehicle.images && vehicle.images[2] ? (
+                <img src={vehicle.images[2]} alt="Gallery 2" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
               ) : (
                 <div className="w-full h-full bg-sunset-orange/10 flex items-center justify-center text-sunset-orange font-medium">More Photos Coming Soon</div>
               )}
@@ -147,25 +155,58 @@ const HotelDetails = () => {
           {/* Details Section */}
           <div className="lg:w-2/3 space-y-8">
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">About this property</h2>
-              <p className="text-gray-600 leading-relaxed text-lg">{hotel.description}</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">About this vehicle</h2>
+              <p className="text-gray-600 leading-relaxed text-lg">
+                Explore the journey in comfort and style with this {vehicle.makeAndModel}. 
+                Perfect for your travel needs across Sri Lanka, offering reliability and a smooth ride.
+                Contact the owner for more specific details or special requests regarding pickup locations.
+              </p>
             </div>
 
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Popular Amenities</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-2">
-                {hotel.amenities && hotel.amenities.map((amenity, idx) => (
-                  <div key={idx} className="flex items-center gap-3 text-gray-700 font-medium">
-                    <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-sunset-teal border border-gray-100">
-                      {amenity === 'Free WiFi' ? <Wifi size={18} /> :
-                       amenity === 'Pool' || amenity === 'Swimming Pool' ? <Waves size={18} /> :
-                       amenity === 'Breakfast Included' ? <Coffee size={18} /> :
-                       amenity === 'A/C' ? <Wind size={18} /> :
-                       <Star size={18} />}
-                    </div>
-                    {amenity}
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Vehicle Specifications</h2>
+              <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                
+                <div className="flex items-center gap-4 text-gray-700">
+                  <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-sunset-teal border border-slate-100">
+                    <Users size={20} />
                   </div>
-                ))}
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Capacity</p>
+                    <p className="font-bold text-lg">{vehicle.seats} Seats</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 text-gray-700">
+                  <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-sunset-teal border border-slate-100">
+                    <Settings size={20} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Transmission</p>
+                    <p className="font-bold text-lg">{vehicle.transmission}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 text-gray-700">
+                  <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-sunset-teal border border-slate-100">
+                    <Wind size={20} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Air Conditioning</p>
+                    <p className="font-bold text-lg">{vehicle.hasAC ? 'Yes' : 'No'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4 text-gray-700">
+                  <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-sunset-teal border border-slate-100">
+                    <Car size={20} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Type</p>
+                    <p className="font-bold text-lg">{vehicle.vehicleType}</p>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
@@ -175,43 +216,26 @@ const HotelDetails = () => {
             <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 sticky top-28">
               <div className="mb-6 flex items-end justify-between">
                 <div>
-                  <span className="text-3xl font-extrabold text-sunset-teal">LKR {hotel.pricePerNight?.toLocaleString()}</span>
-                  <span className="text-gray-500 font-medium"> / night</span>
+                  <span className="text-3xl font-extrabold text-sunset-teal">LKR {vehicle.pricePerDay?.toLocaleString()}</span>
+                  <span className="text-gray-500 font-medium"> / day</span>
                 </div>
               </div>
 
               {(!user || user.role === 'tourist') ? (
                 <form onSubmit={handleBookingSubmit} className="space-y-5">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Check-In</label>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Pickup Date</label>
                       <div className="relative">
                         <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input type="date" name="startDate" value={bookingData.startDate} onChange={handleBookingChange} required min={new Date().toISOString().split('T')[0]} className="w-full pl-9 pr-3 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-sunset-teal outline-none text-sm font-medium" />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Check-Out</label>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Return Date</label>
                       <div className="relative">
                         <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input type="date" name="endDate" value={bookingData.endDate} onChange={handleBookingChange} required min={bookingData.startDate || new Date().toISOString().split('T')[0]} className="w-full pl-9 pr-3 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-sunset-teal outline-none text-sm font-medium" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Guests</label>
-                      <div className="relative">
-                        <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input type="number" name="guests" value={bookingData.guests} onChange={handleBookingChange} required min="1" className="w-full pl-9 pr-3 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-sunset-teal outline-none text-sm font-medium" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Rooms</label>
-                      <div className="relative">
-                        <Home size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input type="number" name="rooms" value={bookingData.rooms} onChange={handleBookingChange} required min="1" className="w-full pl-9 pr-3 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-sunset-teal outline-none text-sm font-medium" />
                       </div>
                     </div>
                   </div>
@@ -231,10 +255,10 @@ const HotelDetails = () => {
 
                   <button 
                     type="submit" 
-                    disabled={bookingLoading}
+                    disabled={bookingLoading || !vehicle.isAvailable}
                     className="w-full bg-gradient-to-r from-sunset-orange to-sunset-gold text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-orange-500/30 transform transition-all hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed text-lg"
                   >
-                    {bookingLoading ? 'Processing...' : (user ? 'Request Booking' : 'Sign In to Book')}
+                    {!vehicle.isAvailable ? 'Not Available' : bookingLoading ? 'Processing...' : (user ? 'Request Booking' : 'Sign In to Book')}
                   </button>
                 </form>
               ) : (
@@ -243,7 +267,7 @@ const HotelDetails = () => {
                     <User size={32} />
                   </div>
                   <h3 className="text-lg font-bold text-blue-900 mb-2">Tourist Feature Only</h3>
-                  <p className="text-blue-700 text-sm font-medium">As a {user.role.replace('_', ' ')}, you cannot book properties. Only tourists can make bookings.</p>
+                  <p className="text-blue-700 text-sm font-medium">As a {user.role.replace('_', ' ')}, you cannot book vehicles. Only tourists can make bookings.</p>
                 </div>
               )}
             </div>
@@ -255,4 +279,4 @@ const HotelDetails = () => {
   );
 };
 
-export default HotelDetails;
+export default VehicleDetails;
